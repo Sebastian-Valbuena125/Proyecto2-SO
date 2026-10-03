@@ -43,9 +43,9 @@ void* masterThreadFunc(void* arg) {
             pthread_cond_wait(&masterCond, &syncMutex);
         }
 
-        if (simulationActive) {
+        // El tick transcurrió, se incrementa siempre para reflejar el tiempo final exacto
             globalTick++;
-        }
+        
 
         pthread_mutex_unlock(&syncMutex);
     }

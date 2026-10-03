@@ -75,10 +75,8 @@ void* workerThreadFunc(void* arg) {
             }
 
             if (preempt) {
-                if (verboseMode) {
                     printf("[T-%04d] [VERBOSE] PREEMPTION: Sentinel %d preempted by higher priority\n", 
                            globalTick, activeSentinel->id);
-                }
                 Queue* targetQ = (activeSentinel->priority == 1) ? &q1 : &q2;
                 
     
@@ -112,8 +110,12 @@ void* workerThreadFunc(void* arg) {
 
 
         if (isQueueEmpty(&arrivalQueue) && isQueueEmpty(&q0) && 
-            isQueueEmpty(&q1) && isQueueEmpty(&q2) && activeSentinel == NULL) {
+        isQueueEmpty(&q1) && isQueueEmpty(&q2) && activeSentinel == NULL) {
             simulationActive = false;
+            isMasterTurn = true;
+            pthread_cond_signal(&masterCond);
+            pthread_mutex_unlock(&syncMutex);
+            break;
         }
 
         isMasterTurn = true;
