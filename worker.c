@@ -11,6 +11,21 @@ int sumTurnaroundTime = 0;
 int sumWaitTime = 0;
 int totalProcessedSentinels = 0;
 
+// Función auxiliar para imprimir el estado de las colas en modo Verbose
+static void printQueueVerbose(Queue* q, const char* qName) {
+    printf("  [%s]: ", qName);
+    if (isQueueEmpty(q)) {
+        printf("Empty\n");
+    } else {
+        SentinelTCB* curr = q->head;
+        while (curr != NULL) {
+            printf("[ID:%d] ", curr->id);
+            curr = curr->next;
+        }
+        printf("\n");
+    }
+}
+
 void* workerThreadFunc(void* arg) {
     SentinelTCB* activeSentinel = NULL;
 
@@ -25,6 +40,22 @@ void* workerThreadFunc(void* arg) {
             pthread_mutex_unlock(&syncMutex);
             break;
         }
+
+        // --- INICIO BLOQUE VERBOSE: ESTADO DEL SISTEMA ---
+        if (verboseMode && (activeSentinel != NULL || !isQueueEmpty(&q0) || !isQueueEmpty(&q1) || !isQueueEmpty(&q2))) {
+            printf("\n--- [VERBOSE] TICK %04d STATE ---\n", globalTick);
+            printQueueVerbose(&q0, "Queue 0 (Q=2) ");
+            printQueueVerbose(&q1, "Queue 1 (Q=4) ");
+            printQueueVerbose(&q2, "Queue 2 (FCFS)");
+            if (activeSentinel != NULL) {
+                printf("  [CPU]: Sentinel ID: %d | Remaining Burst: %d | Quantum Used: %d\n", 
+                       activeSentinel->id, activeSentinel->remainingBurst, activeSentinel->usedQuantum);
+            } else {
+                printf("  [CPU]: Idle\n");
+            }
+            printf("---------------------------------\n");
+        }
+        // --- FIN BLOQUE VERBOSE ---
 
         // 1. Fase de Finalización
         if (activeSentinel != NULL && activeSentinel->remainingBurst == 0) {
@@ -67,7 +98,7 @@ void* workerThreadFunc(void* arg) {
 
             if (expired) {
                 activeSentinel->usedQuantum = 0; 
-                activeSentinel->state = READY; // CORRECCIÓN: Actualizar el estado del TCB al abandonar la CPU
+                activeSentinel->state = READY;
                 Queue* targetQ = (activeSentinel->priority == 0) ? &q0 : &q1;
                 enqueue(targetQ, activeSentinel); 
                 activeSentinel = NULL;
@@ -84,13 +115,12 @@ void* workerThreadFunc(void* arg) {
             }
 
             if (preempt) {
-                // CORRECCIÓN: Envolver la impresión interna en el condicional del modo depuración
                 if (verboseMode) {
                     printf("[T-%04d] [VERBOSE] PREEMPTION: Sentinel %d preempted by higher priority\n", 
                            globalTick, activeSentinel->id);
                 }
                 
-                activeSentinel->state = READY; // CORRECCIÓN: Actualizar el estado del TCB al ser expropiado
+                activeSentinel->state = READY;
                 Queue* targetQ = (activeSentinel->priority == 1) ? &q1 : &q2;
                 
                 enqueueAtHead(targetQ, activeSentinel);
@@ -110,6 +140,9 @@ void* workerThreadFunc(void* arg) {
 
             if (activeSentinel != NULL && activeSentinel->state != RUNNING) {
                 activeSentinel->state = RUNNING;
+                if (verboseMode) {
+                    printf("[T-%04d] [VERBOSE] DISPATCH: Sentinel %d selected for execution\n", globalTick, activeSentinel->id);
+                }
             }
         }
 
