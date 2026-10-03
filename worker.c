@@ -7,11 +7,9 @@
 extern bool verboseMode;
 extern Queue arrivalQueue;
 
-
 int sumTurnaroundTime = 0;
 int sumWaitTime = 0;
 int totalProcessedSentinels = 0;
-
 
 void* workerThreadFunc(void* arg) {
     SentinelTCB* activeSentinel = NULL;
@@ -28,6 +26,7 @@ void* workerThreadFunc(void* arg) {
             break;
         }
 
+        // 1. Fase de Finalización
         if (activeSentinel != NULL && activeSentinel->remainingBurst == 0) {
             activeSentinel->state = FINISHED;
             
@@ -45,7 +44,8 @@ void* workerThreadFunc(void* arg) {
             activeSentinel = NULL;
         }
 
-    if (activeSentinel != NULL) {
+        // 2. Fase de Expiración de Quantum y Rotación
+        if (activeSentinel != NULL) {
             bool expired = false;
             if (activeSentinel->priority == 0 && activeSentinel->usedQuantum == 2) {
                 if (!isQueueEmpty(&q0)) {
@@ -67,13 +67,14 @@ void* workerThreadFunc(void* arg) {
 
             if (expired) {
                 activeSentinel->usedQuantum = 0; 
+                activeSentinel->state = READY; // CORRECCIÓN: Actualizar el estado del TCB al abandonar la CPU
                 Queue* targetQ = (activeSentinel->priority == 0) ? &q0 : &q1;
                 enqueue(targetQ, activeSentinel); 
                 activeSentinel = NULL;
             }
         }
 
-        
+        // 3. Fase de Expropiación (Preemption)
         if (activeSentinel != NULL) {
             bool preempt = false;
             if (activeSentinel->priority == 1 && !isQueueEmpty(&q0)) {
@@ -83,16 +84,21 @@ void* workerThreadFunc(void* arg) {
             }
 
             if (preempt) {
+                // CORRECCIÓN: Envolver la impresión interna en el condicional del modo depuración
+                if (verboseMode) {
                     printf("[T-%04d] [VERBOSE] PREEMPTION: Sentinel %d preempted by higher priority\n", 
                            globalTick, activeSentinel->id);
+                }
+                
+                activeSentinel->state = READY; // CORRECCIÓN: Actualizar el estado del TCB al ser expropiado
                 Queue* targetQ = (activeSentinel->priority == 1) ? &q1 : &q2;
                 
-    
                 enqueueAtHead(targetQ, activeSentinel);
                 activeSentinel = NULL;
             }
         }
 
+        // 4. Fase de Despacho (Dispatch)
         if (activeSentinel == NULL) {
             if (!isQueueEmpty(&q0)) {
                 activeSentinel = dequeue(&q0);
@@ -107,7 +113,7 @@ void* workerThreadFunc(void* arg) {
             }
         }
 
-
+        // 5. Ejecución de Ráfaga
         if (activeSentinel != NULL) {
             activeSentinel->remainingBurst--;
 
@@ -116,7 +122,7 @@ void* workerThreadFunc(void* arg) {
             }
         }
 
-
+        // 6. Verificación de Fin de Simulación
         if (isQueueEmpty(&arrivalQueue) && isQueueEmpty(&q0) && 
         isQueueEmpty(&q1) && isQueueEmpty(&q2) && activeSentinel == NULL) {
             simulationActive = false;
@@ -126,6 +132,7 @@ void* workerThreadFunc(void* arg) {
             break;
         }
 
+        // Ceder el turno de vuelta al Hilo Maestro
         isMasterTurn = true;
         pthread_cond_signal(&masterCond);
         pthread_mutex_unlock(&syncMutex);
