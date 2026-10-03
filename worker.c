@@ -45,16 +45,24 @@ void* workerThreadFunc(void* arg) {
             activeSentinel = NULL;
         }
 
-        if (activeSentinel != NULL) {
+    if (activeSentinel != NULL) {
             bool expired = false;
             if (activeSentinel->priority == 0 && activeSentinel->usedQuantum == 2) {
-                printf("[T-%04d] QUANTUM_EXPIRED: Sentinel %d yields CPU via RR rotation (Q=2)\n", 
-                       globalTick, activeSentinel->id);
-                expired = true;
+                if (!isQueueEmpty(&q0)) {
+                    printf("[T-%04d] QUANTUM_EXPIRED: Sentinel %d yields CPU via RR rotation (Q=2)\n", 
+                           globalTick, activeSentinel->id);
+                    expired = true;
+                } else {
+                    activeSentinel->usedQuantum = 0; // Se renueva el quantum sin rotar
+                }
             } else if (activeSentinel->priority == 1 && activeSentinel->usedQuantum == 4) {
-                printf("[T-%04d] QUANTUM_EXPIRED: Sentinel %d yields CPU via RR rotation (Q=4)\n", 
-                       globalTick, activeSentinel->id);
-                expired = true;
+                if (!isQueueEmpty(&q1)) {
+                    printf("[T-%04d] QUANTUM_EXPIRED: Sentinel %d yields CPU via RR rotation (Q=4)\n", 
+                           globalTick, activeSentinel->id);
+                    expired = true;
+                } else {
+                    activeSentinel->usedQuantum = 0; // Se renueva el quantum sin rotar
+                }
             }
 
             if (expired) {

@@ -39,13 +39,16 @@ void* masterThreadFunc(void* arg) {
         isMasterTurn = false;
         pthread_cond_signal(&workerCond);
 
-        while (!isMasterTurn && simulationActive) {
+ while (!isMasterTurn && simulationActive) {
             pthread_cond_wait(&masterCond, &syncMutex);
         }
 
-        // El tick transcurrió, se incrementa siempre para reflejar el tiempo final exacto
-            globalTick++;
-        
+        if (!simulationActive) {
+            pthread_mutex_unlock(&syncMutex);
+            break;
+        }
+
+        globalTick++;
 
         pthread_mutex_unlock(&syncMutex);
     }
