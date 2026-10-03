@@ -27,6 +27,7 @@ static void printQueueVerbose(Queue* q, const char* qName) {
 }
 
 void* workerThreadFunc(void* arg) {
+    (void)arg;
     SentinelTCB* activeSentinel = NULL;
 
     while (simulationActive) {
