@@ -62,3 +62,30 @@ SentinelTCB* dequeue(Queue* q) {
 bool isQueueEmpty(Queue* q) {
     return (q->count == 0);
 }
+
+void enqueueSortedArrival(Queue* q, SentinelTCB* tcb) {
+    if (tcb == NULL) return;
+    tcb->next = NULL;
+
+    if (q->head == NULL || tcb->arrivalTime < q->head->arrivalTime) {
+        tcb->next = q->head;
+        q->head = tcb;
+        if (q->tail == NULL) {
+            q->tail = tcb;
+        }
+        q->count++;
+        return;
+    }
+
+    SentinelTCB* curr = q->head;
+    while (curr->next != NULL && curr->next->arrivalTime <= tcb->arrivalTime) {
+        curr = curr->next;
+    }
+
+    tcb->next = curr->next;
+    curr->next = tcb;
+    if (tcb->next == NULL) {
+        q->tail = tcb;
+    }
+    q->count++;
+}

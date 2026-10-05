@@ -35,7 +35,8 @@ int parseInputFile(const char* filename, Queue* arrivalQueue) {
             tcb->returnTime = 0;
             tcb->next = NULL;
 
-            enqueue(arrivalQueue, tcb);
+   
+            enqueueSortedArrival(arrivalQueue, tcb);
         }
     }
     

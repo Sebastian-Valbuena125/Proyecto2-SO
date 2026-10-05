@@ -43,5 +43,6 @@ void enqueue(Queue* q, SentinelTCB* tcb);
 void enqueueAtHead(Queue* q, SentinelTCB* tcb);    
 SentinelTCB* dequeue(Queue* q);                    
 bool isQueueEmpty(Queue* q);
+void enqueueSortedArrival(Queue* q, SentinelTCB* tcb);
 
 #endif 

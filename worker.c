@@ -84,8 +84,12 @@ void* workerThreadFunc(void* arg) {
                     printf("[T-%04d] QUANTUM_EXPIRED: Sentinel %d yields CPU via RR rotation (Q=2)\n", 
                            globalTick, activeSentinel->id);
                     expired = true;
-                } else {
-                    activeSentinel->usedQuantum = 0; // Se renueva el quantum sin rotar
+               } else {
+                    if (verboseMode) {
+                        printf("[T-%04d] [VERBOSE] QUANTUM_RENEWED: Sentinel %d renewed quantum (No competitors in Q0)\n",
+                               globalTick, activeSentinel->id);
+                    }
+                    activeSentinel->usedQuantum = 0;
                 }
             } else if (activeSentinel->priority == 1 && activeSentinel->usedQuantum == 4) {
                 if (!isQueueEmpty(&q1)) {
@@ -93,7 +97,11 @@ void* workerThreadFunc(void* arg) {
                            globalTick, activeSentinel->id);
                     expired = true;
                 } else {
-                    activeSentinel->usedQuantum = 0; // Se renueva el quantum sin rotar
+                    if (verboseMode) {
+                        printf("[T-%04d] [VERBOSE] QUANTUM_RENEWED: Sentinel %d renewed quantum (No competitors in Q1)\n",
+                               globalTick, activeSentinel->id);
+                    }
+                    activeSentinel->usedQuantum = 0;
                 }
             }
 
@@ -105,6 +113,7 @@ void* workerThreadFunc(void* arg) {
                 activeSentinel = NULL;
             }
         }
+        
 
         // 3. Fase de Expropiación (Preemption)
         if (activeSentinel != NULL) {
@@ -118,6 +127,9 @@ void* workerThreadFunc(void* arg) {
             if (preempt) {
                 if (verboseMode) {
                     printf("[T-%04d] [VERBOSE] PREEMPTION: Sentinel %d preempted by higher priority\n", 
+                           globalTick, activeSentinel->id);
+                } else {
+                    printf("[T-%04d] PREEMPTION: Sentinel %d preempted by higher priority\n", 
                            globalTick, activeSentinel->id);
                 }
                 
