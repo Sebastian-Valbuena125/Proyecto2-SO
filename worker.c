@@ -64,6 +64,9 @@ void* workerThreadFunc(void* arg) {
             
             int turnaround = globalTick - activeSentinel->arrivalTime;
             int wait = turnaround - activeSentinel->totalBurst;
+
+            activeSentinel->returnTime = turnaround; 
+            activeSentinel->waitTime = wait;
             
             sumTurnaroundTime += turnaround;
             sumWaitTime += wait;
