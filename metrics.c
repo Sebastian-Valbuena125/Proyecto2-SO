@@ -5,6 +5,7 @@
 extern int sumWaitTime;
 extern int totalProcessedSentinels;
 
+// Calcula e imprime las métricas globales de rendimiento al concluir la simulación
 void printFinalMetrics() {
     float throughput = 0.0;
     float avgWaitTime = 0.0;

@@ -7,11 +7,12 @@
 extern bool verboseMode;
 extern Queue arrivalQueue;
 
+// Acumuladores globales para las métricas de rendimiento
 int sumTurnaroundTime = 0;
 int sumWaitTime = 0;
 int totalProcessedSentinels = 0;
 
-// Función auxiliar para imprimir el estado de las colas en modo Verbose
+// Muestra el contenido actual de una cola en modo Verbose
 static void printQueueVerbose(Queue* q, const char* qName) {
     printf("  [%s]: ", qName);
     if (isQueueEmpty(q)) {
@@ -26,6 +27,7 @@ static void printQueueVerbose(Queue* q, const char* qName) {
     }
 }
 
+// Rutina del Hilo Trabajador (CPU_0): ejecuta la planificación y ráfagas de CPU
 void* workerThreadFunc(void* arg) {
     (void)arg;
     SentinelTCB* activeSentinel = NULL;
@@ -33,6 +35,7 @@ void* workerThreadFunc(void* arg) {
     while (simulationActive) {
         pthread_mutex_lock(&syncMutex);
 
+        // Espera a que el Hilo Maestro procese las llegadas del tic actual
         while (isMasterTurn && simulationActive) {
             pthread_cond_wait(&workerCond, &syncMutex);
         }
@@ -42,7 +45,7 @@ void* workerThreadFunc(void* arg) {
             break;
         }
 
-        // --- INICIO BLOQUE VERBOSE: ESTADO DEL SISTEMA ---
+        // Reporte detallado del estado de las colas y CPU en modo depuración
         if (verboseMode && (activeSentinel != NULL || !isQueueEmpty(&q0) || !isQueueEmpty(&q1) || !isQueueEmpty(&q2))) {
             printf("\n--- [VERBOSE] TICK %04d STATE ---\n", globalTick);
             printQueueVerbose(&q0, "Queue 0 (Q=2) ");
@@ -56,9 +59,8 @@ void* workerThreadFunc(void* arg) {
             }
             printf("---------------------------------\n");
         }
-        // --- FIN BLOQUE VERBOSE ---
 
-        // 1. Fase de Finalización
+        // 1. Fase de Finalización: evalúa si la tarea en CPU culminó su ráfaga en el tic previo
         if (activeSentinel != NULL && activeSentinel->remainingBurst == 0) {
             activeSentinel->state = FINISHED;
             
@@ -79,7 +81,7 @@ void* workerThreadFunc(void* arg) {
             activeSentinel = NULL;
         }
 
-        // 2. Fase de Expiración de Quantum y Rotación
+        // 2. Fase de Expiración de Quantum y Rotación (Round Robin en Q0 y Q1)
         if (activeSentinel != NULL) {
             bool expired = false;
             if (activeSentinel->priority == 0 && activeSentinel->usedQuantum == 2) {
@@ -87,7 +89,7 @@ void* workerThreadFunc(void* arg) {
                     printf("[T-%04d] QUANTUM_EXPIRED: Sentinel %d yields CPU via RR rotation (Q=2)\n", 
                            globalTick, activeSentinel->id);
                     expired = true;
-               } else {
+                } else {
                     if (verboseMode) {
                         printf("[T-%04d] [VERBOSE] QUANTUM_RENEWED: Sentinel %d renewed quantum (No competitors in Q0)\n",
                                globalTick, activeSentinel->id);
@@ -108,6 +110,7 @@ void* workerThreadFunc(void* arg) {
                 }
             }
 
+            // Si agotó su quantum y hay competidores, vuelve al final de su cola
             if (expired) {
                 activeSentinel->usedQuantum = 0; 
                 activeSentinel->state = READY;
@@ -116,9 +119,8 @@ void* workerThreadFunc(void* arg) {
                 activeSentinel = NULL;
             }
         }
-        
 
-        // 3. Fase de Expropiación (Preemption)
+        // 3. Fase de Expropiación: desaloja la tarea actual si llegó otra de mayor prioridad
         if (activeSentinel != NULL) {
             bool preempt = false;
             if (activeSentinel->priority == 1 && !isQueueEmpty(&q0)) {
@@ -127,6 +129,7 @@ void* workerThreadFunc(void* arg) {
                 preempt = true; 
             }
 
+            // Devuelve el centinela expropiado a la cabeza de su cola conservando su quantum
             if (preempt) {
                 if (verboseMode) {
                     printf("[T-%04d] [VERBOSE] PREEMPTION: Sentinel %d preempted by higher priority\n", 
@@ -144,7 +147,7 @@ void* workerThreadFunc(void* arg) {
             }
         }
 
-        // 4. Fase de Despacho (Dispatch)
+        // 4. Fase de Despacho: selecciona el siguiente centinela según jerarquía estricta de colas
         if (activeSentinel == NULL) {
             if (!isQueueEmpty(&q0)) {
                 activeSentinel = dequeue(&q0);
@@ -162,7 +165,7 @@ void* workerThreadFunc(void* arg) {
             }
         }
 
-        // 5. Ejecución de Ráfaga
+        // 5. Ejecución de Ráfaga: consume una unidad de tiempo de CPU en el tic actual
         if (activeSentinel != NULL) {
             activeSentinel->remainingBurst--;
 
@@ -171,9 +174,9 @@ void* workerThreadFunc(void* arg) {
             }
         }
 
-        // 6. Verificación de Fin de Simulación
+        // 6. Condición de parada: finaliza si no quedan centinelas por llegar, en colas ni en CPU
         if (isQueueEmpty(&arrivalQueue) && isQueueEmpty(&q0) && 
-        isQueueEmpty(&q1) && isQueueEmpty(&q2) && activeSentinel == NULL) {
+            isQueueEmpty(&q1) && isQueueEmpty(&q2) && activeSentinel == NULL) {
             simulationActive = false;
             isMasterTurn = true;
             pthread_cond_signal(&masterCond);
@@ -181,7 +184,7 @@ void* workerThreadFunc(void* arg) {
             break;
         }
 
-        // Ceder el turno de vuelta al Hilo Maestro
+        // Devuelve el turno al Hilo Maestro para avanzar al siguiente tic
         isMasterTurn = true;
         pthread_cond_signal(&masterCond);
         pthread_mutex_unlock(&syncMutex);

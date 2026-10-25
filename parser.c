@@ -3,6 +3,7 @@
 #include <string.h>
 #include "parser.h"
 
+// Lee el archivo de escenario y carga los TCB en la cola de arribos
 int parseInputFile(const char* filename, Queue* arrivalQueue) {
     FILE* file = fopen(filename, "r");
     if (!file) {
@@ -13,13 +14,14 @@ int parseInputFile(const char* filename, Queue* arrivalQueue) {
     char line[256];
 
     while (fgets(line, sizeof(line), file)) {
-
+        // Ignora comentarios y líneas en blanco
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') {
             continue;
         }
 
         int arrivalTime, id, priority, totalBurst;
         
+        // Extrae los atributos del centinela e inicializa su bloque TCB
         if (sscanf(line, "%d %d %d %d", &arrivalTime, &id, &priority, &totalBurst) == 4) {
             SentinelTCB* tcb = (SentinelTCB*)malloc(sizeof(SentinelTCB));
             if (!tcb) continue;
@@ -35,7 +37,7 @@ int parseInputFile(const char* filename, Queue* arrivalQueue) {
             tcb->returnTime = 0;
             tcb->next = NULL;
 
-   
+            // Encola ordenadamente según el tic de llegada
             enqueueSortedArrival(arrivalQueue, tcb);
         }
     }
